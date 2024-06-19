@@ -1,3 +1,8 @@
+> [!NOTE]
+> This fork was made to use SL API instead of Google Maps API to get departure times from my home area to Stockholm City.
+> If you want to change locations you need to find `siteId` of your locations [here](https://transport.integration.sl.se/v1/sites?expand=true) and get departure `direction` and `line` from [here (replace with your siteId](https://transport.integration.sl.se/v1/sites/{siteId}/departures) 
+
+
 Scriptable Transit Widget for iOS
 =========
 
