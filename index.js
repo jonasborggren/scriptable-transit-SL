@@ -1,36 +1,16 @@
-const GOOGLE_MAPS_API_KEY = "XXX";
-
-const route_1_label = "";
-const route_1_origin = "";
-const route_1_destination = "";
-
-const route_2_label = "";
-const route_2_origin = "";
-const route_2_destination = "";
-
 const routes = [
   {
-    label: route_1_label,
-    origin_destination: [
-      route_1_origin,
-      route_1_destination,
-    ],
+    label: "Mot Stockholm C",
+    siteId:  "9732",
+    line: "43",
+    direction: "2",
   },
   {
-    label: route_2_label,
-    origin_destination: [
-      route_2_origin,
-      route_2_destination,
-    ],
+    label: "Mot Trångsund",
+    siteId: "1080",
+    line: "43",
+    direction: "1",
   },
-  // Example
-  // {
-  //   label: "Morning Commute",
-  //   origin_destination: [
-  //     "68 St - Hunter College",
-  //     "Canal St, New York, NY 10013",
-  //   ],
-  // },
 ];
 
 // Light-Mode 1st, Dark-Mode 2nd
@@ -60,7 +40,7 @@ const colors = {
 const widget = new ListWidget();
 widget.backgroundColor = colors.widgetBg;
 
-function composeGoogleMapsRequestUrl(origin, destination) {
+ /*
   return [
     "https://maps.googleapis.com/maps/api/directions/json",
     `?origin=${encodeURIComponent(origin)}`,
@@ -70,32 +50,28 @@ function composeGoogleMapsRequestUrl(origin, destination) {
     "&transit_routing_preference=fewer_transfers",
     "&alternatives=true",
     `&key=${GOOGLE_MAPS_API_KEY}`,
+  ].join("");*/
+
+function composeGoogleMapsRequestUrl(siteId, line, direction) {
+  return [
+    "https://transport.integration.sl.se/v1/sites/" + siteId + "/departures",
+    "?transport=TRAIN",
+    "&direction=" + direction,
+    "&line=" + line,
+    "&forecast=60"
   ].join("");
 }
 
-async function getStopData(origin, destination) {
-  const googleMapsRequestUrl = 
-    composeGoogleMapsRequestUrl(
-        origin,
-        destination
-    );
-  const googleMapsRequest = new Request(
-    googleMapsRequestUrl
-  );
-  return googleMapsRequest.loadJSON();
+async function getStopData(siteId, line, direction) {
+  const url = composeGoogleMapsRequestUrl(siteId, line, direction);
+  const req = new Request(url);
+  return await req.loadJSON();
 }
 
 function getStopTimes(stopData) {
-  const routes = stopData.routes.filter((route) => {
-    // No Multi Modal Trips
-    return (
-      route.legs.length === 1 &&
-      route.legs[0].steps.length === 3
-    );
-  });
-
-  const routeTimes = routes.map((route) => {
-    return route.legs[0].departure_time.text;
+  const routeTimes = stopData.departures.map((departure) => {
+    console.log(departure);
+    return departure.expected;
   });
 
   return routeTimes;
@@ -105,31 +81,35 @@ function createRouteScheduleStack(stopTimes, color, label) {
   let scheduleLabel = widget.addText(label);
   scheduleLabel.textColor = colors.labelTextColor;
   scheduleLabel.font = Font.boldSystemFont(14);
+  scheduleLabel.lineLimit = 1;
 
   let row = widget.addStack();
+  row.layoutHorizontally()
+  
   row.setPadding(4, 0, 0, 0);
+  row.spacing =3;
 
-  stopTimes.forEach((_time, idx) => {
+  stopTimes.forEach((time, idx) => {
     let cell = row.addStack();
     cell.backgroundColor = colors.cellBackgroundColor;
     cell.setPadding(2, 3, 2, 3);
     cell.cornerRadius = 4;
 
-    // Slice the "am" or "pm" from the time string
-    const time = _time.slice(0, -2);
+    const formatted = new Date(time);
+    time = formatted.toLocaleTimeString();
 
-    let cellText = cell.addText(time);
+    let cellText = cell.addText(time.substring(0,5));
     cellText.font = Font.mediumSystemFont(12);
+    cellText.lineLimit = 1;
+    cell.widthWeight = idx;
 
     cellText.textColor = colors.cellTextColor;
+    
 
     // Add some spacing to the right of each cell
-    const isLastIteration = idx === stopTimes.length - 1;
+
 
     widget.addStack(row);
-    if (!isLastIteration) {
-      row.addText(" ");
-    }
   });
 }
 
@@ -138,13 +118,15 @@ let len = routes.length;
 
 for (i; i < len; i++) {
   const route = routes[i];
-  const [origin, destination] = route.origin_destination;
+  const {label, siteId,line, direction} = route;
+  const color = colors.cellBackgroundColor;
 
-  const stopData = await getStopData(origin, destination);
+  const stopData = await getStopData(siteId, line, direction);
   const stopTimes = getStopTimes(stopData);
+  log(stopTimes);
   createRouteScheduleStack(
-    stopTimes.slice(0, 3),
-    route.color,
+    stopTimes,
+    color,
     route.label
   );
 
