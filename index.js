@@ -19,124 +19,120 @@ const colors = {
     new Color("#EAECED"),
     new Color("#22262C")
   ),
-  cellBackgroundColor: Color.dynamic(
-    new Color("#D0D2D4"),
-    new Color("#3C4044")
+  labelTextColor: Color.dynamic(
+    new Color("#00204F"),
+    new Color("#88C4C9")
   ),
   update: Color.dynamic(
     new Color("#676767"),
     new Color("#A1A1A6")
   ),
-  labelTextColor: Color.dynamic(
-    new Color("#00204F"),
-    new Color("#88C4C9")
+  cellBackgroundColor: Color.dynamic(
+    new Color("#D0D2D4"),
+    new Color("#3C4044")
   ),
   cellTextColor: Color.dynamic(
     new Color("#212121"),
     new Color("#FFFFFF")
+  ),
+  atStop: Color.dynamic(
+    new Color("#FFA500"),
+    new Color("#FFA500")
+  ),
+  onAtStop: Color.dynamic(
+    new Color("#000000"),
+    new Color("#000000")
+  ),
+  cancelled: null,
+  onCancelled: Color.dynamic(
+    new Color("#777777"),
+    new Color("#777777")
   ),
 };
 
 const widget = new ListWidget();
 widget.backgroundColor = colors.widgetBg;
 
- /*
-  return [
-    "https://maps.googleapis.com/maps/api/directions/json",
-    `?origin=${encodeURIComponent(origin)}`,
-    `&destination=${encodeURIComponent(destination)}`,
-    "&mode=transit",
-    "&transit_mode=rail",
-    "&transit_routing_preference=fewer_transfers",
-    "&alternatives=true",
-    `&key=${GOOGLE_MAPS_API_KEY}`,
-  ].join("");*/
-
-function composeGoogleMapsRequestUrl(siteId, line, direction) {
-  return [
-    "https://transport.integration.sl.se/v1/sites/" + siteId + "/departures",
-    "?transport=TRAIN",
-    "&direction=" + direction,
-    "&line=" + line,
-    "&forecast=60"
-  ].join("");
-}
-
 async function getStopData(siteId, line, direction) {
-  const url = composeGoogleMapsRequestUrl(siteId, line, direction);
-  const req = new Request(url);
+  const req = new Request(
+    [
+      "https://transport.integration.sl.se/v1/sites/" + siteId + "/departures",
+      "?transport=TRAIN",
+      "&direction=" + direction,
+      "&line=" + line,
+      "&forecast=" + 1199
+    ].join("")
+  );
   return await req.loadJSON();
 }
 
 function getStopTimes(stopData) {
-  const routeTimes = stopData.departures.map((departure) => {
+  return stopData.departures.map((departure) => {
     console.log(departure);
-    return departure.expected;
-  });
-
-  return routeTimes;
+    return [departure.expected, departure.state];
+  }).splice(0,3);
 }
 
-function createRouteScheduleStack(stopTimes, color, label) {
-  let scheduleLabel = widget.addText(label);
+function createRouteScheduleStack(stopTimes, label) {
+  const scheduleLabel = widget.addText(label);
   scheduleLabel.textColor = colors.labelTextColor;
   scheduleLabel.font = Font.boldSystemFont(14);
   scheduleLabel.lineLimit = 1;
 
-  let row = widget.addStack();
+  const row = widget.addStack();
   row.layoutHorizontally()
-  
   row.setPadding(4, 0, 0, 0);
-  row.spacing =3;
+  row.spacing = 3;
 
-  stopTimes.forEach((time, idx) => {
-    let cell = row.addStack();
-    cell.backgroundColor = colors.cellBackgroundColor;
+  stopTimes.forEach((data, idx) => {
+    const [time, state] = data;
+    let cellColor, cellTextColor;
+    switch(state) {
+      case "AT_STOP":
+       cellColor = colors.atStop;
+       cellTextColor = colors.onAtStop;
+        break;
+      case "CANCELLED":
+        cellColor = colors.cancelled;
+        cellTextColor = colors.onCancelled;
+        break;
+      default:
+        cellColor = colors.cellBackgroundColor;
+        cellTextColor = colors.cellTextColor;
+        break;
+    }
+
+    const cell = row.addStack();
+    cell.backgroundColor = cellColor;
     cell.setPadding(2, 3, 2, 3);
     cell.cornerRadius = 4;
 
-    const formatted = new Date(time);
-    time = formatted.toLocaleTimeString();
-
-    let cellText = cell.addText(time.substring(0,5));
-    cellText.font = Font.mediumSystemFont(12);
+    const formattedTime = new Date(time).toLocaleTimeString();
+    const hhmm = formattedTime.substring(0,5);
+    const cellText = cell.addText(hhmm);
+    cellText.font = Font.mediumSystemFont(11.5);
     cellText.lineLimit = 1;
-    cell.widthWeight = idx;
-
-    cellText.textColor = colors.cellTextColor;
+    cellText.textColor = cellTextColor;
     
-
-    // Add some spacing to the right of each cell
-
-
     widget.addStack(row);
   });
 }
 
-let i = 0;
-let len = routes.length;
-
-for (i; i < len; i++) {
+for (let i = 0; i < routes.length; i++) {
   const route = routes[i];
-  const {label, siteId,line, direction} = route;
-  const color = colors.cellBackgroundColor;
-
+  const {label, siteId, line, direction} = route;
   const stopData = await getStopData(siteId, line, direction);
   const stopTimes = getStopTimes(stopData);
-  log(stopTimes);
   createRouteScheduleStack(
     stopTimes,
-    color,
-    route.label
+    label
   );
-
   widget.addSpacer();
 }
 
-let lastUpdatedAt =
-  "Last updated " + new Date().toLocaleTimeString();
+const lastUpdatedAt = "Last updated " + new Date().toLocaleTimeString();
 const lastUpdatedAtText = widget.addText(lastUpdatedAt);
-lastUpdatedAtText.textColor = colors.updated;
+lastUpdatedAtText.textColor = colors.update;
 lastUpdatedAtText.font = Font.lightSystemFont(8);
 
 // Every 10 minutes
