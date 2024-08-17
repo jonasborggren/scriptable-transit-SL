@@ -73,8 +73,12 @@ async function getStopData(name, lines, direction) {
   return linesJson;
 }
 
-function getStopTimes(stopData) {
-  return stopData[0].departures.slice(0, 3).map((departure) => [departure.expected, departure.state]);
+function getStopTimes(stopData)
+{
+    return stopData.map((e) => e.departures).flatMap((departures) => departures.map((departure) => [
+        departure.expected,
+        departure.state
+    ])).slice(0,3);
 }
 
 function createRouteScheduleStack(stopTimes, label) {
