@@ -2,13 +2,13 @@ const routes = [
   {
     label: "Mot Stockholm C",
     name: "Trångsund",
-    lines: [42, 43],
+    lines: [42,43],
     direction: 2,
   },
   {
     label: "Mot Trångsund",
     name: "Stockholm City",
-    lines: [42, 43],
+    lines: [42,43],
     direction: 1,
   },
 ];
@@ -68,6 +68,7 @@ async function getStopData(name, lines, direction) {
     ].join("");
     const req = new Request(url);
     const json = await req.loadJSON();
+//     console.log(json);
     linesJson.push(json);
   }
   return linesJson;
@@ -78,7 +79,7 @@ function getStopTimes(stopData)
     return stopData.map((e) => e.departures).flatMap((departures) => departures.map((departure) => [
         departure.expected,
         departure.state
-    ])).slice(0,3);
+    ])).sort((a, b) => new Date(a[0]) - new Date(b[0])).slice(0,3);
 }
 
 function createRouteScheduleStack(stopTimes, label) {
@@ -96,6 +97,7 @@ function createRouteScheduleStack(stopTimes, label) {
     let [time, state] = data;
     const cell = row.addStack();
     let cellColor, cellTextColor;
+    console.log(time );
 
     switch (state) {
       case "BOARDING":
