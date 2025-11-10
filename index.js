@@ -1,12 +1,12 @@
 const routes = [
   {
-    label: "Mot Stockholm C",
-    name: "Trångsund",
+    label: "Till Stockholm C",
+    name: "Västerhaninge",
     lines: [42,43],
     direction: 2,
   },
   {
-    label: "Mot Trångsund",
+    label: "Till Västerhaninge",
     name: "Stockholm City",
     lines: [42,43],
     direction: 1,
@@ -33,7 +33,7 @@ const colors = {
   ),
   cellTextColor: Color.dynamic(
     new Color("#212121"), 
-    new Color("#FFFFFF")
+    new Color("#ffffff")
   ),
   atStop: Color.dynamic(
     new Color("#FFA500"), 
@@ -47,6 +47,14 @@ const colors = {
   onCancelled: Color.dynamic(
     new Color("#777777"), 
     new Color("#777777")
+  ),
+  late: Color.dynamic(
+    new Color("#d6cf26"),
+    new Color("#d6cf26"),
+  ),
+  onLate: Color.dynamic(
+    new Color("#000000"), 
+    new Color("#000000")
   ),
 };
 
@@ -78,7 +86,8 @@ function getStopTimes(stopData)
 {
     return stopData.map((e) => e.departures).flatMap((departures) => departures.map((departure) => [
         departure.expected,
-        departure.state
+        departure.state,
+        departure.line.designation
     ])).sort((a, b) => new Date(a[0]) - new Date(b[0])).slice(0,3);
 }
 
@@ -94,10 +103,12 @@ function createRouteScheduleStack(stopTimes, label) {
   row.spacing = 3;
 
   stopTimes.forEach((data) => {
-    let [time, state] = data;
+    let [time, state, designation] = data;
     const cell = row.addStack();
     let cellColor, cellTextColor;
     console.log(time );
+    console.log(state);
+    console.log(designation);
 
     switch (state) {
       case "BOARDING":
@@ -105,6 +116,10 @@ function createRouteScheduleStack(stopTimes, label) {
       case "AT_STOP":
         cellColor = colors.atStop;
         cellTextColor = colors.onAtStop;
+        break;
+      case "NOTEXPECTED":
+        cellColor = colors.late;
+        cellTextColor = colors.onLate;
         break;
       case "CANCELLED":
         cellColor = colors.cancelled;
@@ -119,12 +134,24 @@ function createRouteScheduleStack(stopTimes, label) {
     cell.backgroundColor = cellColor;
     cell.setPadding(2, 3, 2, 3);
     cell.cornerRadius = 4;
+    
+if (designation.includes("X")) {
+  const xMark = cell.addText("X");
+  xMark.font = Font.boldSystemFont(11.5);
+  xMark.textColor = new Color("#FF000080"); // transparent red
+  xMark.centerAlignText();
+}
+
 
     const formattedTime = new Date(time).toLocaleTimeString();
-    const cellText = cell.addText(formattedTime.substring(0, 5));
+    let timeText = formattedTime.substring(0, 5);
+    let text = timeText;
+    console.log(text);
+    const cellText = cell.addText(text);
     cellText.font = Font.mediumSystemFont(11.5);
     cellText.lineLimit = 1;
     cellText.textColor = cellTextColor;
+    
   });
 
   widget.addStack(row);
